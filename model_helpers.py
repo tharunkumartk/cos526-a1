@@ -18,17 +18,20 @@ to8b = lambda x: (255 * np.clip(x, 0, 1)).astype(np.uint8)
 def get_rays(H, W, K, c2w):
     # Convert numpy array to torch tensor if needed
     if isinstance(c2w, np.ndarray):
-        c2w = torch.from_numpy(c2w)
+        c2w = torch.from_numpy(c2w).cuda()
 
-    device = c2w.device
-
-    i, j = torch.meshgrid(torch.linspace(0, W - 1, W), torch.linspace(0, H - 1, H))
+    i, j = torch.meshgrid(
+        torch.linspace(0, W - 1, W, device="cuda"),
+        torch.linspace(0, H - 1, H, device="cuda"),
+    )
     i = i.t()
     j = j.t()
     dirs = torch.stack(
         [(i - K[0][2]) / K[0][0], -(j - K[1][2]) / K[1][1], -torch.ones_like(i)], -1
     )
-    rays_d = torch.sum(dirs[..., np.newaxis, :] * c2w[:3, :3], -1)
+    # Make sure dirs is on GPU
+    dirs = dirs.cuda()
+    rays_d = torch.sum(dirs[..., None, :] * c2w[:3, :3], -1)
     rays_o = c2w[:3, -1].expand(rays_d.shape)
     return rays_o, rays_d
 
